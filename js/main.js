@@ -179,6 +179,14 @@ document.getElementById('glCanvas').addEventListener('click', () => {
     camera?.requestPointerLock();
   }
 });
+// Keyboard shortcut: R restarts the game after winning or during play.
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'r') {
+    if (gameRunning || document.getElementById('win-screen').style.display === 'flex') {
+      restartGame();
+    }
+  }
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   const startBtn = document.getElementById('start-btn');
