@@ -12,6 +12,13 @@ const COLLECTIBLE_CELLS = [
   [7, 1],
   [9, 9],
 ];
+// Decorative crate positions [row, col] — must be open cells
+const CRATE_CELLS = [
+  [1, 7],
+  [5, 3],
+  [7, 7],
+  [11, 5]
+];
 
 const COLLECT_RADIUS = 0.7; // how close player must be to pick up
 
@@ -154,8 +161,10 @@ class Collectible {
 
     gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, model);
     gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, normMat);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_useTexture'), 0);
-    gl.uniform3fv(gl.getUniformLocation(prog, 'u_objectColor'), this.color);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_useTexture'), 1);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_texture'), 0);
 
     setAttrib(gl, prog, 'a_position', this.bufs.pos,  3);
     setAttrib(gl, prog, 'a_normal',   this.bufs.norm, 3);
