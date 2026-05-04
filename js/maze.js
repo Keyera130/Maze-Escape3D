@@ -164,8 +164,11 @@ class Maze {
     };
 
     // Placeholder textures — swap for loadTextureFromURL() when you have image files
-    this.wallTex  = loadTexture(gl, [80,  60,  50,  255]); // brownish stone
-    this.floorTex = loadTexture(gl, [55,  55,  60,  255]); // dark concrete
+    //this.wallTex  = loadTexture(gl, [80,  60,  50,  255]); // brownish stone
+    //this.floorTex = loadTexture(gl, [55,  55,  60,  255]); // dark concrete
+    
+    this.wallTex  = loadTextureFromURL(gl, 'textures/wall.png');
+    this.floorTex = loadTextureFromURL(gl, 'textures/floor.png');
   }
 
   draw(uniforms) {
