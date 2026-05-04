@@ -370,6 +370,8 @@ class ObjectManager {
       ([row, col]) => new Collectible(gl, program, row, col)
     );
     this.exit = new ExitDoor(gl, program);
+    this.exitMarker = new ExitMarker(gl, program);
+    this.crates = CRATE_CELLS.map(([row, col]) => new Crate(gl, program, row, col));
     this.collectedCount = 0;
 
     // Update HUD totals
@@ -383,6 +385,7 @@ class ObjectManager {
   update(dt, playerX, playerZ) {
     // Animate
     for (const c of this.collectibles) c.update(dt);
+    this.exitMarker.update(dt);
 
     // Check pickups
     for (const c of this.collectibles) {
@@ -408,7 +411,9 @@ class ObjectManager {
   }
 
   draw() {
+    for (const crate of this.crates) crate.draw();
     for (const c of this.collectibles) c.draw();
     this.exit.draw();
+    this.exitMarker.draw();
   }
 }
