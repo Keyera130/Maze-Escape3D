@@ -205,8 +205,11 @@ class ExitDoor {
       count: geo.indices.length
     };
 
-    this.lockedTex   = loadTexture(gl, [200, 50,  50,  255]); // red = locked
-    this.unlockedTex = loadTexture(gl, [50,  220, 80,  255]); // green = open
+    //this.lockedTex   = loadTexture(gl, [200, 50,  50,  255]); // red = locked
+    //this.unlockedTex = loadTexture(gl, [50,  220, 80,  255]); // green = open
+
+    this.lockedTex   = loadTextureFromURL(gl, 'textures/door_locked.png'); // RED LOCKED DOOR
+    this.unlockedTex = loadTextureFromURL(gl, 'textures/door_open.png'); // GREEN OPEN DOOR
   }
 
   unlock() {
