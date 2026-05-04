@@ -2,21 +2,16 @@
 
 Maze Escape 3D is an interactive WebGL maze game created for CS 4053 Computer Graphics. The player explores a 3D maze, collects required objects, and unlocks the exit door after all collectibles are found.
 
----
-
 ## Group Members
 
-- Reese Zimmerman
+- Reese Zimmermann
 - Keyera Lastrap
----
 
 ## Project Overview
 
 This project demonstrates core computer graphics concepts in a browser-based 3D environment. The scene includes a maze, textured objects, lighting, camera movement, collision detection, collectibles, and an exit door interaction.
 
 The goal is to escape the maze by navigating the environment and collecting all required items before reaching the exit.
-
----
 
 ## Features
 
@@ -31,7 +26,6 @@ The goal is to escape the maze by navigating the environment and collecting all 
 - Object transformations using translation, rotation, and scaling
 - Multiple interactive features for meaningful gameplay
 
----
 ## Controls
 
 | Control | Action |
@@ -46,8 +40,6 @@ The goal is to escape the maze by navigating the environment and collecting all 
 | `L` | Cycle light color |
 | `F` | Toggle flashlight / ambient lighting |
 | Restart Button | Restart after escaping |
-
----
 
 ## How to Run
 
@@ -73,7 +65,6 @@ Then open this address in your browser:
 ```text
 http://localhost:8000
 ```
----
 
 ## Project Files
 
@@ -86,7 +77,6 @@ http://localhost:8000
 | `WebGL.js` | WebGL setup and rendering support |
 | `Textures/` | Stores image textures used on walls, floor, door, and objects |
 
----
 
 ## Textures and Assets
 
@@ -108,7 +98,6 @@ All image assets are stored in the `textures/` folder.
 | `crate.png` | Decorative crate/pillar texture |
 | `exit_marker.png` | Exit marker texture |
 
----
 
 ## Graphics Requirements Covered
 
@@ -123,13 +112,10 @@ All image assets are stored in the `textures/` folder.
 | Interaction | Player movement, collectible pickup, and door activation |
 | Scene Complexity | Maze includes several unique objects and interactive elements |
 
----
 
 ## Gameplay Objective
 
 The player starts inside the maze and must explore the environment to find all collectibles. Once every collectible has been collected, the exit door becomes active or opens, allowing the player to complete the maze escape.
-
----
 
 ## Troubleshooting
 
@@ -153,8 +139,6 @@ This is expected when the player reaches a wall. The maze uses collision detecti
 
 The exit only opens after all five gems have been collected. Check the HUD gem counter and make sure it shows `5 / 5`.
 
----
-
 ## Future Improvements
 
 Possible improvements include:
@@ -169,13 +153,11 @@ Possible improvements include:
 - Add a leaderboard for fastest completion times
 - Improve mobile/browser compatibility
 
----
-
 ## Credits
 
-Created for **CS 4053: Computer Graphics** as a final group project.
+Created for **CS 4053: Computer Graphics** as a final group project (Spring 26).
 
 **Project Title:** Maze Escape 3D  
-**Group Members:** Keyera Lastrap and Reese Zimmerman  
+**Group Members:** Keyera Lastrap and Reese Zimmermann
 **Platform:** JavaScript and WebGL  
 **Development Environment:** Visual Studio Code and GitHub
