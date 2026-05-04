@@ -1,273 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Maze Escape 3D</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700&display=swap');
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
+    * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      background: #0a0a0f;
-      color: #e0f7fa;
-      font-family: 'Share Tech Mono', monospace;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
+      background:#050508; color:#e0f7fa;
+      font-family:'Share Tech Mono', monospace;
+      overflow:hidden; height:100vh;
     }
+    #canvas-container { position:relative; width:100vw; height:100vh; }
+    #glCanvas { width:100%; height:100%; display:block; cursor:none; }
 
     #hud {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      padding: 16px 24px;
-      pointer-events: none;
-      z-index: 10;
+      position:absolute; top:0; left:0; right:0;
+      display:flex; justify-content:space-between;
+      padding:14px 20px; pointer-events:none; z-index:10;
     }
-
     .hud-panel {
-      background: rgba(0,20,30,0.75);
-      border: 1px solid #00e5ff44;
-      border-radius: 4px;
-      padding: 10px 18px;
-      backdrop-filter: blur(6px);
+      background:rgba(0,10,20,0.80);
+      border:1px solid #00e5ff33; border-radius:4px;
+      padding:10px 16px; backdrop-filter:blur(6px);
     }
-
     .hud-title {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 18px;
-      color: #00e5ff;
-      letter-spacing: 3px;
-      text-shadow: 0 0 12px #00e5ff88;
+      font-family:'Orbitron',sans-serif; font-size:16px;
+      color:#00e5ff; letter-spacing:3px;
+      text-shadow:0 0 10px #00e5ff88;
+    }
+    .hud-stat { font-size:12px; color:#80deea; margin-top:5px; }
+    .hud-stat span { color:#00e5ff; font-weight:bold; }
+
+    #controls-bar {
+      position:absolute; bottom:14px; left:50%;
+      transform:translateX(-50%);
+      background:rgba(0,10,20,0.75);
+      border:1px solid #00e5ff22; border-radius:4px;
+      padding:7px 18px; font-size:11px; color:#4dd8e8;
+      pointer-events:none; z-index:10; white-space:nowrap;
+    }
+    #controls-bar kbd {
+      background:#00e5ff18; border:1px solid #00e5ff44;
+      border-radius:2px; padding:1px 5px; color:#00e5ff;
+      font-family:inherit; font-size:10px;
     }
 
-    .hud-stat {
-      font-size: 13px;
-      color: #80deea;
-      margin-top: 4px;
-    }
-
-    .hud-stat span {
-      color: #00e5ff;
-      font-weight: bold;
-    }
-
-    #canvas-container {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-    }
-
-    #glCanvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-      cursor: none;
-    }
-
-    /* Crosshair */
     #crosshair {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 5;
+      position:absolute; top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      pointer-events:none; z-index:5;
     }
-    #crosshair::before, #crosshair::after {
-      content: '';
-      position: absolute;
-      background: rgba(0,229,255,0.8);
+    #crosshair::before,#crosshair::after {
+      content:''; position:absolute; background:rgba(0,229,255,0.75);
     }
-    #crosshair::before {
-      width: 2px; height: 14px;
-      top: -7px; left: -1px;
-    }
-    #crosshair::after {
-      width: 14px; height: 2px;
-      top: -1px; left: -7px;
-    }
+    #crosshair::before { width:2px; height:14px; top:-7px; left:-1px; }
+    #crosshair::after  { width:14px; height:2px; top:-1px; left:-7px; }
 
-    /* Start Screen Overlay */
-    #start-screen {
-      position: absolute;
-      inset: 0;
-      background: rgba(5,5,15,0.92);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 20;
-      backdrop-filter: blur(4px);
-    }
-
-    #start-screen h1 {
-      font-family: 'Orbitron', sans-serif;
-      font-size: clamp(28px, 5vw, 56px);
-      color: #00e5ff;
-      letter-spacing: 6px;
-      text-shadow: 0 0 30px #00e5ffaa, 0 0 60px #00e5ff44;
-      margin-bottom: 12px;
-      animation: pulse 2.5s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { text-shadow: 0 0 20px #00e5ffaa, 0 0 50px #00e5ff44; }
-      50%       { text-shadow: 0 0 40px #00e5ffcc, 0 0 90px #00e5ff66; }
-    }
-
-    #start-screen p {
-      color: #80deea;
-      font-size: 14px;
-      margin: 6px 0;
-      letter-spacing: 1px;
-    }
-
-    #start-screen .keys {
-      margin-top: 28px;
-      display: grid;
-      grid-template-columns: repeat(2, auto);
-      gap: 8px 24px;
-      text-align: left;
-    }
-
-    .key-hint {
-      font-size: 13px;
-      color: #b2ebf2;
-    }
-
-    .key-hint kbd {
-      background: #00e5ff22;
-      border: 1px solid #00e5ff55;
-      border-radius: 3px;
-      padding: 2px 7px;
-      color: #00e5ff;
-      font-family: inherit;
-      font-size: 12px;
-    }
-
-    #start-btn {
-      margin-top: 36px;
-      padding: 14px 40px;
-      font-family: 'Orbitron', sans-serif;
-      font-size: 15px;
-      letter-spacing: 4px;
-      color: #0a0a0f;
-      background: #00e5ff;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-      transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
-      box-shadow: 0 0 24px #00e5ff66;
-    }
-
-    #start-btn:hover {
-      background: #40f4ff;
-      box-shadow: 0 0 36px #00e5ffaa;
-      transform: translateY(-2px);
-    }
-
-    /* Win Screen */
-    #win-screen {
-      position: absolute;
-      inset: 0;
-      background: rgba(5,5,15,0.92);
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 20;
-    }
-
-    #win-screen h2 {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 42px;
-      color: #69ff47;
-      text-shadow: 0 0 30px #69ff4788;
-      letter-spacing: 4px;
-    }
-
-    #win-screen p {
-      color: #b9f6ca;
-      margin-top: 12px;
-      font-size: 15px;
-    }
-
-    #restart-btn {
-      margin-top: 28px;
-      padding: 12px 32px;
-      font-family: 'Orbitron', sans-serif;
-      font-size: 13px;
-      letter-spacing: 3px;
-      color: #0a0a0f;
-      background: #69ff47;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-      box-shadow: 0 0 20px #69ff4766;
-      transition: transform 0.1s;
-    }
-    #restart-btn:hover { transform: translateY(-2px); }
-
-    /* Collectible flash */
     #collect-flash {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,229,255,0.08);
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.1s;
-      z-index: 8;
+      position:absolute; inset:0;
+      background:rgba(0,229,255,0.07);
+      pointer-events:none; opacity:0;
+      transition:opacity 0.08s; z-index:8;
     }
-    #collect-flash.flash { opacity: 1; }
+    #collect-flash.flash { opacity:1; }
+
+    #start-screen {
+      position:absolute; inset:0;
+      background:rgba(3,3,12,0.94);
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      z-index:20; backdrop-filter:blur(4px);
+    }
+    #start-screen h1 {
+      font-family:'Orbitron',sans-serif;
+      font-size:clamp(24px,5vw,52px); color:#00e5ff;
+      letter-spacing:6px; text-shadow:0 0 30px #00e5ffaa;
+      margin-bottom:8px;
+      animation:pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100%{ text-shadow:0 0 20px #00e5ffaa; }
+      50%    { text-shadow:0 0 45px #00e5ffcc; }
+    }
+    .subtitle { color:#80deea; font-size:13px; margin-bottom:26px; letter-spacing:1px; }
+    .controls-grid {
+      display:grid; grid-template-columns:auto auto;
+      gap:8px 32px; margin-bottom:28px; text-align:left;
+    }
+    .key-row { font-size:12px; color:#b2ebf2; }
+    .key-row kbd {
+      background:#00e5ff22; border:1px solid #00e5ff55;
+      border-radius:3px; padding:2px 6px; color:#00e5ff;
+      font-family:inherit; font-size:11px;
+    }
+    #start-btn {
+      padding:13px 40px; font-family:'Orbitron',sans-serif;
+      font-size:14px; letter-spacing:4px; color:#050508;
+      background:#00e5ff; border:none; border-radius:3px;
+      cursor:pointer; box-shadow:0 0 24px #00e5ff66;
+      transition:background 0.2s, box-shadow 0.2s, transform 0.1s;
+    }
+    #start-btn:hover { background:#40f4ff; box-shadow:0 0 36px #00e5ffaa; transform:translateY(-2px); }
+
+    #win-screen {
+      position:absolute; inset:0;
+      background:rgba(3,3,12,0.93);
+      display:none; flex-direction:column;
+      align-items:center; justify-content:center; z-index:20;
+    }
+    #win-screen h2 {
+      font-family:'Orbitron',sans-serif; font-size:42px;
+      color:#69ff47; letter-spacing:4px;
+      text-shadow:0 0 30px #69ff4788;
+    }
+    #win-screen p { color:#b9f6ca; margin-top:10px; font-size:14px; }
+    #restart-btn {
+      margin-top:26px; padding:12px 30px;
+      font-family:'Orbitron',sans-serif; font-size:13px;
+      letter-spacing:3px; color:#050508; background:#69ff47;
+      border:none; border-radius:3px; cursor:pointer;
+      box-shadow:0 0 20px #69ff4766; transition:transform 0.1s;
+    }
+    #restart-btn:hover { transform:translateY(-2px); }
   </style>
 </head>
 <body>
-
 <div id="canvas-container">
   <canvas id="glCanvas"></canvas>
   <div id="crosshair"></div>
   <div id="collect-flash"></div>
 
-  <!-- HUD -->
   <div id="hud">
     <div class="hud-panel">
       <div class="hud-title">MAZE ESCAPE 3D</div>
-      <div class="hud-stat">Collectibles: <span id="hud-collected">0</span> / <span id="hud-total">0</span></div>
-    </div>
-    <div class="hud-panel">
-      <div class="hud-stat">Exit: <span id="hud-exit-status">LOCKED</span></div>
+      <div class="hud-stat">Gems: <span id="hud-collected">0</span> / <span id="hud-total">0</span></div>
       <div class="hud-stat">Time: <span id="hud-time">0:00</span></div>
     </div>
+    <div class="hud-panel" style="text-align:right">
+      <div class="hud-stat">Exit: <span id="hud-exit-status">LOCKED</span></div>
+      <div class="hud-stat">Light: <span id="hud-light-color">Warm</span></div>
+      <div class="hud-stat">Flashlight: <span id="hud-flashlight">ON</span></div>
+    </div>
   </div>
 
-  <!-- Start Screen -->
+  <div id="controls-bar">
+    <kbd>W A S D</kbd> Move &nbsp;&nbsp;
+    <kbd>Mouse</kbd> Look &nbsp;&nbsp;
+    <kbd>L</kbd> Light color &nbsp;&nbsp;
+    <kbd>F</kbd> Flashlight
+  </div>
+
   <div id="start-screen">
     <h1>MAZE ESCAPE 3D</h1>
-    <p>Find all collectibles, then reach the exit.</p>
-    <div class="keys">
-      <span class="key-hint"><kbd>W A S D</kbd> Move</span>
-      <span class="key-hint"><kbd>Mouse</kbd> Look</span>
-      <span class="key-hint"><kbd>R</kbd> Restart</span>
+    <p class="subtitle">Collect all 5 gems · reach the glowing exit</p>
+    <div class="controls-grid">
+      <span class="key-row"><kbd>W A S D</kbd> &nbsp;Move</span>
+      <span class="key-row"><kbd>Mouse</kbd> &nbsp;Look around</span>
+      <span class="key-row"><kbd>L</kbd> &nbsp;Cycle light color</span>
+      <span class="key-row"><kbd>F</kbd> &nbsp;Toggle flashlight</span>
     </div>
-    <button id="start-btn">ENTER MAZE</button>
+    <button id="start-btn" onclick="startGame()">ENTER MAZE</button>
   </div>
 
-  <!-- Win Screen -->
   <div id="win-screen">
     <h2>ESCAPED!</h2>
     <p id="win-time">You escaped in 0:00</p>
-    <button id="restart-btn">PLAY AGAIN</button>
+    <button id="restart-btn" onclick="restartGame()">PLAY AGAIN</button>
   </div>
 </div>
 
-<!-- Shaders -->
 <script id="vertex-shader" type="x-shader/x-vertex">
   attribute vec3 a_position;
   attribute vec3 a_normal;
@@ -284,56 +188,92 @@
 
   void main() {
     vec4 worldPos = u_modelMatrix * vec4(a_position, 1.0);
-    v_fragPos    = worldPos.xyz;
-    v_normal     = normalize(u_normalMatrix * a_normal);
-    v_texCoord   = a_texCoord;
-    gl_Position  = u_projMatrix * u_viewMatrix * worldPos;
+    v_fragPos   = worldPos.xyz;
+    v_normal    = normalize(u_normalMatrix * a_normal);
+    v_texCoord  = a_texCoord;
+    gl_Position = u_projMatrix * u_viewMatrix * worldPos;
   }
 </script>
 
 <script id="fragment-shader" type="x-shader/x-fragment">
+  #extension GL_OES_standard_derivatives : enable
   precision mediump float;
 
   varying vec3 v_normal;
   varying vec3 v_fragPos;
   varying vec2 v_texCoord;
 
-  uniform vec3  u_lightPos;
-  uniform vec3  u_lightColor;
-  uniform vec3  u_viewPos;
-  uniform vec3  u_objectColor;
-  uniform bool  u_useTexture;
-  uniform sampler2D u_texture;
+  uniform vec3 u_lightPos;
+  uniform vec3 u_lightColor;
+  uniform vec3 u_viewPos;
+  uniform float u_ambientStrength;
 
-  // Phong lighting
+  uniform sampler2D u_diffuseMap;
+  uniform sampler2D u_normalMap;
+  uniform sampler2D u_specularMap;
+  uniform sampler2D u_ambientMap;
+
+  uniform bool u_useNormalMap;
+  uniform bool u_useSpecularMap;
+  uniform bool u_useAmbientMap;
+
+  mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
+    vec3 dp1 = dFdx(p);
+    vec3 dp2 = dFdy(p);
+    vec2 duv1 = dFdx(uv);
+    vec2 duv2 = dFdy(uv);
+
+    vec3 dp2perp = cross(dp2, N);
+    vec3 dp1perp = cross(N, dp1);
+
+    vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+    vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+
+    float invMax = inversesqrt(max(dot(T,T), dot(B,B)));
+    return mat3(T * invMax, B * invMax, N);
+  }
+
+  vec3 getNormal() {
+    vec3 N = normalize(v_normal);
+    if (!u_useNormalMap) return N;
+
+    vec3 mapN = texture2D(u_normalMap, v_texCoord).rgb;
+    mapN = mapN * 2.0 - 1.0;
+
+    mat3 TBN = cotangentFrame(N, v_fragPos, v_texCoord);
+    return normalize(TBN * mapN);
+  }
+
   void main() {
-    vec3 baseColor = u_useTexture
-      ? texture2D(u_texture, v_texCoord).rgb
-      : u_objectColor;
+    vec3 baseColor = texture2D(u_diffuseMap, v_texCoord).rgb;
 
-    // Ambient
-    float ambientStrength = 0.25;
-    vec3 ambient = ambientStrength * u_lightColor * baseColor;
+    vec3 ambientColor = baseColor;
+    if (u_useAmbientMap) {
+      ambientColor *= texture2D(u_ambientMap, v_texCoord).rgb;
+    }
 
-    // Diffuse
-    vec3 norm     = normalize(v_normal);
+    vec3 norm = getNormal();
     vec3 lightDir = normalize(u_lightPos - v_fragPos);
-    float diff    = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse  = diff * u_lightColor * baseColor;
+    vec3 viewDir = normalize(u_viewPos - v_fragPos);
+    vec3 reflectDir = reflect(-lightDir, norm);
 
-    // Specular
-    float specularStrength = 0.4;
-    vec3 viewDir  = normalize(u_viewPos - v_fragPos);
-    vec3 reflDir  = reflect(-lightDir, norm);
-    float spec    = pow(max(dot(viewDir, reflDir), 0.0), 32.0);
-    vec3 specular = specularStrength * spec * u_lightColor;
+    float diff = max(dot(norm, lightDir), 0.0);
 
-    vec3 result = ambient + diffuse + specular;
-    gl_FragColor = vec4(result, 1.0);
+    float specStrength = 0.35;
+    if (u_useSpecularMap) {
+      specStrength = texture2D(u_specularMap, v_texCoord).r;
+    }
+
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+
+    vec3 ambient = u_ambientStrength * u_lightColor * ambientColor;
+    vec3 diffuse = diff * u_lightColor * baseColor;
+    vec3 specular = specStrength * spec * u_lightColor;
+
+    gl_FragColor = vec4(ambient + diffuse + specular, 1.0);
   }
 </script>
 
-<!-- JS Modules -->
 <script src="js/utils.js"></script>
 <script src="js/maze.js"></script>
 <script src="js/objects.js"></script>
@@ -341,6 +281,5 @@
 <script src="js/collision.js"></script>
 <script src="js/lighting.js"></script>
 <script src="js/main.js"></script>
-
 </body>
 </html>
