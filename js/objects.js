@@ -125,9 +125,9 @@ class Collectible {
     };
 
     // Bright cyan gem color
-    this.color = [0.1, 0.9, 1.0];
-    this.tex = loadTexture(gl, [20, 220, 255, 255]);
-    
+    //this.color = [0.1, 0.9, 1.0];
+    //this.tex = loadTexture(gl, [20, 220, 255, 255]);
+
     //ADDED texture for the gem
     this.tex = loadTextureFromURL(gl, 'textures/gem.png');
   }
@@ -147,6 +147,8 @@ class Collectible {
     const bob = Math.sin(Date.now() * 0.002) * 0.08;
     let model = Mat4.translation(this.x, this.y + bob, this.z);
     model = Mat4.multiply(model, Mat4.rotationY(this.spinAngle));
+    model = Mat4.multiply(model, Mat4.scale(1.0, 1.25, 1.0));
+    // translation places the gem, rotation animates it, and scaling stretches it.
 
     const normMat = Mat4.normalMatrix(model);
 
