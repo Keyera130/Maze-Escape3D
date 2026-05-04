@@ -9,6 +9,7 @@ Maze Escape 3D is an interactive WebGL maze exploration game created for CS 4053
 ## How to Run
 1. Clone or download this repository.
 2. Open `index.html` in a browser.
+
 ## Controls
 
 - `W` - Move forward
