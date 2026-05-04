@@ -1,121 +1,93 @@
-// ============================================================
-// main.js  —  WebGL init, game loop, state management
-// Maze Escape 3D  |  CS 4053
-// Primary authors: Keyera & Reese
-// ============================================================
-
-// ---- Globals -----------------------------------------------
-
 let gl, program;
 let maze, objects, camera;
 let gameRunning = false;
-let lastTime = 0;
-let startTime = 0;
-
-// ---- Init --------------------------------------------------
+let lastTime = 0, startTime = 0;
+let flashlightOn = true;
+let keysAlreadyBound = false;
 
 function initWebGL() {
   const canvas = document.getElementById('glCanvas');
-
-  // Match canvas resolution to display size
-  canvas.width  = canvas.clientWidth  * window.devicePixelRatio;
-  canvas.height = canvas.clientHeight * window.devicePixelRatio;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.clientWidth * dpr;
+  canvas.height = canvas.clientHeight * dpr;
 
   gl = canvas.getContext('webgl');
-  if (!gl) {
-    alert('WebGL not supported in your browser. Please use Chrome or Firefox.');
+  if (!gl) { alert('WebGL not supported. Use Chrome or Firefox.'); return false; }
+
+  const derivatives = gl.getExtension('OES_standard_derivatives');
+  if (!derivatives) {
+    alert('Your browser/GPU does not support normal mapping derivatives. Try Chrome or Edge.');
     return false;
   }
 
-  // Get shader source from script tags in index.html
   const vertSrc = document.getElementById('vertex-shader').textContent;
   const fragSrc = document.getElementById('fragment-shader').textContent;
   program = createProgram(gl, vertSrc, fragSrc);
   if (!program) return false;
 
   gl.useProgram(program);
-
-  // WebGL state
   gl.enable(gl.DEPTH_TEST);
   gl.enable(gl.CULL_FACE);
   gl.cullFace(gl.BACK);
-  gl.clearColor(0.05, 0.05, 0.08, 1.0); // dark background
-
+  gl.clearColor(0.02, 0.02, 0.04, 1.0);
   return true;
 }
 
 function initScene() {
-  maze    = new Maze(gl, program);
+  maze = new Maze(gl, program);
   objects = new ObjectManager(gl, program);
-  camera  = new Camera(PLAYER_START.x, PLAYER_START.y, PLAYER_START.z);
+  camera = new Camera(PLAYER_START.x, PLAYER_START.y, PLAYER_START.z);
+
+  document.getElementById('hud-light-color').textContent = 'Warm';
+  document.getElementById('hud-flashlight').textContent = 'ON';
 }
 
-// ---- Projection --------------------------------------------
-
 function setProjection() {
-  const canvas = gl.canvas;
-  const aspect = canvas.width / canvas.height;
-  const fovY   = 70 * Math.PI / 180; // 70° vertical FOV
-  const proj   = Mat4.perspective(fovY, aspect, 0.1, 100.0);
+  const aspect = gl.canvas.width / gl.canvas.height;
+  const proj = Mat4.perspective(70 * Math.PI / 180, aspect, 0.1, 120.0);
   gl.uniformMatrix4fv(gl.getUniformLocation(program, 'u_projMatrix'), false, proj);
 }
 
-// ---- Game Loop ---------------------------------------------
-
-function gameLoop(timestamp) {
+function gameLoop(ts) {
   if (!gameRunning) return;
-
-  const dt = Math.min((timestamp - lastTime) / 1000, 0.05); // cap at 50ms
-  lastTime = timestamp;
-
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
   update(dt);
   render();
   updateHUDTime();
-
   requestAnimationFrame(gameLoop);
 }
 
 function update(dt) {
-  // --- Camera / movement ---
   const { dx, dz } = camera.getMovementDelta(dt);
   const safe = resolveCollision(camera.x, camera.z, dx, dz);
   camera.move(safe.dx, safe.dz);
 
-  // --- Object interactions ---
   const result = objects.update(dt, camera.x, camera.z);
-  if (result === 'exit') {
-    triggerWin();
-  }
+  if (result === 'exit') triggerWin();
 }
 
 function render() {
   const canvas = gl.canvas;
-
-  // Resize if window changed
-  if (canvas.width !== canvas.clientWidth * window.devicePixelRatio ||
-      canvas.height !== canvas.clientHeight * window.devicePixelRatio) {
-    canvas.width  = canvas.clientWidth  * window.devicePixelRatio;
-    canvas.height = canvas.clientHeight * window.devicePixelRatio;
+  const dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== canvas.clientWidth * dpr ||
+      canvas.height !== canvas.clientHeight * dpr) {
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
   }
 
   gl.viewport(0, 0, canvas.width, canvas.height);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
   setProjection();
 
-  // View matrix
-  const view = camera.getViewMatrix();
-  gl.uniformMatrix4fv(gl.getUniformLocation(program, 'u_viewMatrix'), false, view);
-
-  // Lighting
+  gl.uniformMatrix4fv(gl.getUniformLocation(program, 'u_viewMatrix'), false, camera.getViewMatrix());
+  gl.uniform1f(gl.getUniformLocation(program, 'u_ambientStrength'), flashlightOn ? 0.45 : 0.07);
   applyLighting(gl, program, camera.position);
 
-  // Draw scene
+  applyLighting(gl, program, camera.position);
   maze.draw();
   objects.draw();
 }
-
-// ---- HUD time update ---------------------------------------
 
 function updateHUDTime() {
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -124,18 +96,32 @@ function updateHUDTime() {
   document.getElementById('hud-time').textContent = `${m}:${s}`;
 }
 
-// ---- Game state controls -----------------------------------
+function bindInteractionKeys() {
+  document.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+
+    if (key === 'l') {
+      e.preventDefault();
+      cycleLightColor();
+    }
+
+    if (key === 'f') {
+      e.preventDefault();
+      flashlightOn = !flashlightOn;
+      document.getElementById('hud-flashlight').textContent = flashlightOn ? 'ON' : 'OFF';
+    }
+  });
+}
 
 function startGame() {
   if (!initWebGL()) return;
   initScene();
-
+  bindInteractionKeys();
   document.getElementById('start-screen').style.display = 'none';
   camera.requestPointerLock();
-
   gameRunning = true;
-  startTime   = Date.now();
-  lastTime    = performance.now();
+  startTime = Date.now();
+  lastTime = performance.now();
   requestAnimationFrame(gameLoop);
 }
 
@@ -143,60 +129,32 @@ function restartGame() {
   document.getElementById('win-screen').style.display = 'none';
   document.getElementById('hud-exit-status').textContent = 'LOCKED';
   document.getElementById('hud-exit-status').style.color = '';
-
+  flashlightOn = true;
   initScene();
   camera.requestPointerLock();
-
   gameRunning = true;
-  startTime   = Date.now();
-  lastTime    = performance.now();
+  startTime = Date.now();
+  lastTime = performance.now();
   requestAnimationFrame(gameLoop);
 }
 
 function triggerWin() {
   gameRunning = false;
   document.exitPointerLock();
-
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
   const m = Math.floor(elapsed / 60);
   const s = String(elapsed % 60).padStart(2, '0');
-
-  const winScreen = document.getElementById('win-screen');
   document.getElementById('win-time').textContent = `You escaped in ${m}:${s}`;
-  winScreen.style.display = 'flex';
+  document.getElementById('win-screen').style.display = 'flex';
 }
 
-// Handle window resize
 window.addEventListener('resize', () => {
   const canvas = document.getElementById('glCanvas');
-  canvas.width  = canvas.clientWidth  * window.devicePixelRatio;
-  canvas.height = canvas.clientHeight * window.devicePixelRatio;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.clientWidth * dpr;
+  canvas.height = canvas.clientHeight * dpr;
 });
 
-// Click canvas to re-lock pointer if it escapes
 document.getElementById('glCanvas').addEventListener('click', () => {
-  if (gameRunning && !camera?.pointerLocked) {
-    camera?.requestPointerLock();
-  }
-});
-// Keyboard shortcut: R restarts the game after winning or during play.
-document.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() === 'r') {
-    if (gameRunning || document.getElementById('win-screen').style.display === 'flex') {
-      restartGame();
-    }
-  }
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-  const startBtn = document.getElementById('start-btn');
-  const restartBtn = document.getElementById('restart-btn');
-
-  if (startBtn) {
-    startBtn.addEventListener('click', startGame);
-  }
-
-  if (restartBtn) {
-    restartBtn.addEventListener('click', restartGame);
-  }
+  if (gameRunning && camera && !camera.pointerLocked) camera.requestPointerLock();
 });

@@ -1,54 +1,24 @@
-// ============================================================
-// objects.js  —  Collectibles & Exit Door
-// Maze Escape 3D  |  CS 4053
-// Primary author: Keyera (placement/transforms) + Reese (interaction logic)
-// ============================================================
-
-// Collectible spawn positions [row, col] — must be open cells
 const COLLECTIBLE_CELLS = [
-  [1, 3],
-  [3, 5],
-  [5, 7],
-  [7, 1],
-  [9, 9],
+  [1, 3], [3, 5], [5, 7], [7, 1], [9, 9],
 ];
-// Decorative crate positions [row, col] — must be open cells
-const CRATE_CELLS = [
-  [1, 7],
-  [5, 3],
-  [7, 7],
-  [11, 5]
+const COLLECT_RADIUS = 0.75;
+
+const PILLAR_CELLS = [
+  [3, 3], [5, 5], [7, 5], [9, 5],
 ];
 
-const COLLECT_RADIUS = 0.7; // how close player must be to pick up
+const TORCH_CELLS = [
+  [1, 5], [5, 1], [9, 1], [11, 5],
+];
 
-// ---- Spinning Gem geometry (octahedron) --------------------
-
-function buildOctahedron(size) {
-  const s = size;
-  // 6 vertices of a regular octahedron
-  const verts = [
-    [ 0,  s,  0],  // top
-    [ s,  0,  0],  // right
-    [ 0,  0,  s],  // front
-    [-s,  0,  0],  // left
-    [ 0,  0, -s],  // back
-    [ 0, -s,  0],  // bottom
-  ];
-
-  // 8 triangular faces
-  const faces = [
-    [0,1,2], [0,2,3], [0,3,4], [0,4,1],
-    [5,2,1], [5,3,2], [5,4,3], [5,1,4]
-  ];
-
+function buildOctahedron(s) {
+  const verts = [[0,s,0],[s,0,0],[0,0,s],[-s,0,0],[0,0,-s],[0,-s,0]];
+  const faces = [[0,1,2],[0,2,3],[0,3,4],[0,4,1],[5,2,1],[5,3,2],[5,4,3],[5,1,4]];
   const positions = [], normals = [], texcoords = [], indices = [];
   let base = 0;
 
-  for (const [a, b, c] of faces) {
+  for (const [a,b,c] of faces) {
     const pa = verts[a], pb = verts[b], pc = verts[c];
-
-    // Flat face normal
     const ab = [pb[0]-pa[0], pb[1]-pa[1], pb[2]-pa[2]];
     const ac = [pc[0]-pa[0], pc[1]-pa[1], pc[2]-pa[2]];
     const norm = Vec3.normalize(Vec3.cross(ab, ac));
@@ -59,48 +29,38 @@ function buildOctahedron(size) {
     indices.push(base, base+1, base+2);
     base += 3;
   }
-
   return { positions, normals, texcoords, indices };
 }
 
-// ---- Exit Door geometry (flat quad facing -Z) --------------
-
-function buildDoorQuad(width, height) {
-  const hw = width / 2;
-  const positions = [-hw,0,0, hw,0,0, hw,height,0, -hw,height,0];
-  const norm = [0,0,1];
-  const normals = [...norm,...norm,...norm,...norm];
-  const texcoords = [0,0, 1,0, 1,1, 0,1];
-  const indices = [0,1,2, 0,2,3];
-  return { positions, normals, texcoords, indices };
-}
-
-// Unit cube centered at origin. Used for crates and the exit marker in the maze (added for unique object/texturing/lighting requirements)
-function buildCube(size = 1.0) {
-  const h = size / 2;
+function buildCylinder(radius, height, segments = 12) {
   const positions = [], normals = [], texcoords = [], indices = [];
   let base = 0;
 
-  function addFace(ps, normal) {
-    positions.push(...ps[0], ...ps[1], ...ps[2], ...ps[3]);
-    normals.push(...normal, ...normal, ...normal, ...normal);
-    texcoords.push(0,0, 1,0, 1,1, 0,1);
+  for (let i = 0; i < segments; i++) {
+    const a0 = (i / segments) * Math.PI * 2;
+    const a1 = ((i + 1) / segments) * Math.PI * 2;
+    const x0 = Math.cos(a0) * radius, z0 = Math.sin(a0) * radius;
+    const x1 = Math.cos(a1) * radius, z1 = Math.sin(a1) * radius;
+    const n0 = [Math.cos(a0), 0, Math.sin(a0)];
+    const n1 = [Math.cos(a1), 0, Math.sin(a1)];
+
+    positions.push(x0,0,z0, x1,0,z1, x1,height,z1, x0,height,z0);
+    normals.push(...n0, ...n1, ...n1, ...n0);
+    texcoords.push(i/segments,1, (i+1)/segments,1, (i+1)/segments,0, i/segments,0);
     indices.push(base, base+1, base+2, base, base+2, base+3);
     base += 4;
   }
-
-  // +X, -X, +Y, -Y, +Z, -Z
-  addFace([[ h,-h,-h],[ h,-h, h],[ h, h, h],[ h, h,-h]], [ 1,0,0]);
-  addFace([[-h,-h, h],[-h,-h,-h],[-h, h,-h],[-h, h, h]], [-1,0,0]);
-  addFace([[-h, h,-h],[ h, h,-h],[ h, h, h],[-h, h, h]], [ 0,1,0]);
-  addFace([[-h,-h, h],[ h,-h, h],[ h,-h,-h],[-h,-h,-h]], [ 0,-1,0]);
-  addFace([[ h,-h, h],[-h,-h, h],[-h, h, h],[ h, h, h]], [ 0,0,1]);
-  addFace([[-h,-h,-h],[ h,-h,-h],[ h, h,-h],[-h, h,-h]], [ 0,0,-1]);
-
   return { positions, normals, texcoords, indices };
 }
 
-// ---- Collectible class -------------------------------------
+function buildDoorQuad(w, h) {
+  return {
+    positions: [-w/2,0,0, w/2,0,0, w/2,h,0, -w/2,h,0],
+    normals:   [0,0,1, 0,0,1, 0,0,1, 0,0,1],
+    texcoords: [0,0, 1,0, 1,1, 0,1],
+    indices:   [0,1,2, 0,2,3]
+  };
+}
 
 class Collectible {
   constructor(gl, program, row, col) {
@@ -109,75 +69,62 @@ class Collectible {
     this.collected = false;
     this.row = row;
     this.col = col;
-
-    // World position: center of the cell, floating at mid-height
     this.x = col * CELL_SIZE + CELL_SIZE / 2;
     this.y = 0.9;
     this.z = row * CELL_SIZE + CELL_SIZE / 2;
-
-    this.spinAngle = Math.random() * Math.PI * 2; // random starting rotation
+    this.spinAngle = Math.random() * Math.PI * 2;
     this._build();
   }
 
   _build() {
-    const gl = this.gl;
-    const geo = buildOctahedron(0.22);
-
+    const gl = this.gl, geo = buildOctahedron(0.28);
     this.bufs = {
-      pos:   createBuffer(gl, geo.positions),
-      norm:  createBuffer(gl, geo.normals),
-      tex:   createBuffer(gl, geo.texcoords),
-      idx:   createIndexBuffer(gl, geo.indices),
+      pos: createBuffer(gl, geo.positions),
+      norm: createBuffer(gl, geo.normals),
+      tex: createBuffer(gl, geo.texcoords),
+      idx: createIndexBuffer(gl, geo.indices),
       count: geo.indices.length
     };
 
-    // Bright cyan gem color
-    //this.color = [0.1, 0.9, 1.0];
-    //this.tex = loadTexture(gl, [20, 220, 255, 255]);
-
-    //ADDED texture for the gem
-    this.tex = loadTextureFromURL(gl, 'textures/gem.png');
+    this.maps = {
+      diffuse:  loadTextureFromURL(gl, 'textures/gem.png', false),
+      normal:   loadTextureFromURL(gl, 'textures/gem_normal.png', false),
+      specular: loadTextureFromURL(gl, 'textures/gem_specular.png', false),
+      ambient:  loadTextureFromURL(gl, 'textures/gem_ambient.png', false)
+    };
   }
 
   update(dt) {
-    if (!this.collected) {
-      this.spinAngle += dt * 1.8; // radians per second
-    }
+    if (!this.collected) this.spinAngle += dt * 2.0;
   }
 
   draw() {
     if (this.collected) return;
-    const gl = this.gl;
-    const prog = this.program;
 
-    // Model: translate to position, rotate Y, bob up/down slightly
-    const bob = Math.sin(Date.now() * 0.002) * 0.08;
-    let model = Mat4.translation(this.x, this.y + bob, this.z);
-    model = Mat4.multiply(model, Mat4.rotationY(this.spinAngle));
-    model = Mat4.multiply(model, Mat4.scale(1.0, 1.25, 1.0));
-    // translation places the gem, rotation animates it, and scaling stretches it.
+    const gl = this.gl, prog = this.program;
+    const bob = Math.sin(Date.now() * 0.002) * 0.09;
+    const pulse = 1.0 + 0.08 * Math.sin(Date.now() * 0.003);
 
-    const normMat = Mat4.normalMatrix(model);
+    let model = Mat4.multiply(
+      Mat4.translation(this.x, this.y + bob, this.z),
+      Mat4.rotationY(this.spinAngle)
+    );
+    model = Mat4.multiply(model, Mat4.scale(pulse, pulse, pulse));
 
     gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, model);
-    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, normMat);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_useTexture'), 1);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.tex);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_texture'), 0);
+    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, Mat4.normalMatrix(model));
 
-    setAttrib(gl, prog, 'a_position', this.bufs.pos,  3);
-    setAttrib(gl, prog, 'a_normal',   this.bufs.norm, 3);
-    setAttrib(gl, prog, 'a_texCoord', this.bufs.tex,  2);
+    bindTextureMaps(gl, prog, this.maps);
+    setAttrib(gl, prog, 'a_position', this.bufs.pos, 3);
+    setAttrib(gl, prog, 'a_normal', this.bufs.norm, 3);
+    setAttrib(gl, prog, 'a_texCoord', this.bufs.tex, 2);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufs.idx);
     gl.drawElements(gl.TRIANGLES, this.bufs.count, gl.UNSIGNED_SHORT, 0);
   }
 
-  // Returns true if player is within collection radius
-  checkCollection(playerX, playerZ) {
+  checkCollection(px, pz) {
     if (this.collected) return false;
-    const dx = playerX - this.x;
-    const dz = playerZ - this.z;
+    const dx = px - this.x, dz = pz - this.z;
     if (Math.sqrt(dx*dx + dz*dz) < COLLECT_RADIUS) {
       this.collected = true;
       return true;
@@ -186,243 +133,212 @@ class Collectible {
   }
 }
 
-// ---- Exit Door class ---------------------------------------
+class Pillar {
+  constructor(gl, program, row, col) {
+    this.gl = gl;
+    this.program = program;
+    this.x = col * CELL_SIZE + CELL_SIZE / 2;
+    this.z = row * CELL_SIZE + CELL_SIZE / 2;
+    this._build();
+  }
+
+  _build() {
+    const gl = this.gl, geo = buildCylinder(0.20, WALL_HEIGHT, 14);
+    this.bufs = {
+      pos: createBuffer(gl, geo.positions),
+      norm: createBuffer(gl, geo.normals),
+      tex: createBuffer(gl, geo.texcoords),
+      idx: createIndexBuffer(gl, geo.indices),
+      count: geo.indices.length
+    };
+
+    this.maps = {
+      diffuse: loadTextureFromURL(gl, 'textures/crate.png')
+    };
+  }
+
+  draw() {
+    const gl = this.gl, prog = this.program;
+    const model = Mat4.translation(this.x, 0, this.z);
+
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, model);
+    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, Mat4.normalMatrix(model));
+
+    bindTextureMaps(gl, prog, this.maps);
+    setAttrib(gl, prog, 'a_position', this.bufs.pos, 3);
+    setAttrib(gl, prog, 'a_normal', this.bufs.norm, 3);
+    setAttrib(gl, prog, 'a_texCoord', this.bufs.tex, 2);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufs.idx);
+    gl.drawElements(gl.TRIANGLES, this.bufs.count, gl.UNSIGNED_SHORT, 0);
+  }
+}
+
+class Torch {
+  constructor(gl, program, row, col) {
+    this.gl = gl;
+    this.program = program;
+    this.x = col * CELL_SIZE + CELL_SIZE / 2;
+    this.z = row * CELL_SIZE + CELL_SIZE / 2;
+    this.flicker = Math.random() * Math.PI * 2;
+    this._build();
+  }
+
+  _build() {
+    const gl = this.gl;
+    const body = buildCylinder(0.08, 0.35, 8);
+    this.bufs = {
+      pos: createBuffer(gl, body.positions),
+      norm: createBuffer(gl, body.normals),
+      tex: createBuffer(gl, body.texcoords),
+      idx: createIndexBuffer(gl, body.indices),
+      count: body.indices.length
+    };
+
+    this.maps = { diffuse: solidTex(gl, 130, 75, 35) };
+
+    const flame = buildOctahedron(0.12);
+    this.flameBufs = {
+      pos: createBuffer(gl, flame.positions),
+      norm: createBuffer(gl, flame.normals),
+      tex: createBuffer(gl, flame.texcoords),
+      idx: createIndexBuffer(gl, flame.indices),
+      count: flame.indices.length
+    };
+    this.flameMaps = { diffuse: solidTex(gl, 255, 150, 20) };
+  }
+
+  draw() {
+    const gl = this.gl, prog = this.program;
+    const mountY = 1.35;
+
+    const model = Mat4.translation(this.x, mountY, this.z);
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, model);
+    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, Mat4.normalMatrix(model));
+    bindTextureMaps(gl, prog, this.maps);
+    setAttrib(gl, prog, 'a_position', this.bufs.pos, 3);
+    setAttrib(gl, prog, 'a_normal', this.bufs.norm, 3);
+    setAttrib(gl, prog, 'a_texCoord', this.bufs.tex, 2);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufs.idx);
+    gl.drawElements(gl.TRIANGLES, this.bufs.count, gl.UNSIGNED_SHORT, 0);
+
+    this.flicker += 0.05;
+    const flameY = mountY + 0.35 + Math.sin(this.flicker * 3.7) * 0.03;
+    const flameScale = 1.0 + Math.sin(this.flicker * 5.1) * 0.15;
+    const flameModel = Mat4.multiply(
+      Mat4.translation(this.x, flameY, this.z),
+      Mat4.scale(flameScale, flameScale, flameScale)
+    );
+
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, flameModel);
+    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, Mat4.normalMatrix(flameModel));
+    bindTextureMaps(gl, prog, this.flameMaps);
+    setAttrib(gl, prog, 'a_position', this.flameBufs.pos, 3);
+    setAttrib(gl, prog, 'a_normal', this.flameBufs.norm, 3);
+    setAttrib(gl, prog, 'a_texCoord', this.flameBufs.tex, 2);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.flameBufs.idx);
+    gl.drawElements(gl.TRIANGLES, this.flameBufs.count, gl.UNSIGNED_SHORT, 0);
+  }
+}
 
 class ExitDoor {
   constructor(gl, program) {
     this.gl = gl;
     this.program = program;
     this.unlocked = false;
-
-    // Place door at exit cell, facing inward (-Z direction)
     this.x = EXIT_CELL.col * CELL_SIZE + CELL_SIZE / 2;
     this.y = 0;
     this.z = EXIT_CELL.row * CELL_SIZE + CELL_SIZE / 2;
-
     this._build();
   }
 
   _build() {
-    const gl = this.gl;
-    const geo = buildDoorQuad(CELL_SIZE * 0.8, WALL_HEIGHT);
-
+    const gl = this.gl, geo = buildDoorQuad(CELL_SIZE * 0.85, WALL_HEIGHT);
     this.bufs = {
-      pos:   createBuffer(gl, geo.positions),
-      norm:  createBuffer(gl, geo.normals),
-      tex:   createBuffer(gl, geo.texcoords),
-      idx:   createIndexBuffer(gl, geo.indices),
+      pos: createBuffer(gl, geo.positions),
+      norm: createBuffer(gl, geo.normals),
+      tex: createBuffer(gl, geo.texcoords),
+      idx: createIndexBuffer(gl, geo.indices),
       count: geo.indices.length
     };
 
-    //this.lockedTex   = loadTexture(gl, [200, 50,  50,  255]); // red = locked
-    //this.unlockedTex = loadTexture(gl, [50,  220, 80,  255]); // green = open
-
-    this.lockedTex   = loadTextureFromURL(gl, 'textures/door_locked.png'); // RED LOCKED DOOR
-    this.unlockedTex = loadTextureFromURL(gl, 'textures/door_open.png'); // GREEN OPEN DOOR
+    this.lockedMaps = {
+      diffuse: loadTextureFromURL(gl, 'textures/door_locked.png', false)
+    };
+    this.unlockedMaps = {
+      diffuse: loadTextureFromURL(gl, 'textures/door_open.png', false)
+    };
   }
 
   unlock() {
     this.unlocked = true;
-    document.getElementById('hud-exit-status').textContent = 'OPEN';
-    document.getElementById('hud-exit-status').style.color = '#69ff47';
+    const el = document.getElementById('hud-exit-status');
+    el.textContent = 'OPEN';
+    el.style.color = '#69ff47';
   }
 
   draw() {
-    const gl = this.gl;
-    const prog = this.program;
-
-    const model   = Mat4.translation(this.x, this.y, this.z);
-    const normMat = Mat4.normalMatrix(model);
+    const gl = this.gl, prog = this.program;
+    const model = Mat4.translation(this.x, this.y, this.z);
 
     gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, model);
-    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, normMat);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_useTexture'), 1);
+    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, Mat4.normalMatrix(model));
 
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.unlocked ? this.unlockedTex : this.lockedTex);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_texture'), 0);
+    bindTextureMaps(gl, prog, this.unlocked ? this.unlockedMaps : this.lockedMaps);
 
-    setAttrib(gl, prog, 'a_position', this.bufs.pos,  3);
-    setAttrib(gl, prog, 'a_normal',   this.bufs.norm, 3);
-    setAttrib(gl, prog, 'a_texCoord', this.bufs.tex,  2);
+    gl.disable(gl.CULL_FACE);
+    setAttrib(gl, prog, 'a_position', this.bufs.pos, 3);
+    setAttrib(gl, prog, 'a_normal', this.bufs.norm, 3);
+    setAttrib(gl, prog, 'a_texCoord', this.bufs.tex, 2);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufs.idx);
     gl.drawElements(gl.TRIANGLES, this.bufs.count, gl.UNSIGNED_SHORT, 0);
+    gl.enable(gl.CULL_FACE);
   }
 
-  // Check if player reached unlocked exit
-  checkExit(playerX, playerZ) {
+  checkExit(px, pz) {
     if (!this.unlocked) return false;
-    const dx = playerX - this.x;
-    const dz = playerZ - this.z;
+    const dx = px - this.x, dz = pz - this.z;
     return Math.sqrt(dx*dx + dz*dz) < 1.0;
   }
 }
 
-// ---- added Exit marker class -------------------------------------
-
-class ExitMarker {
-  constructor(gl, program) {
-    this.gl = gl;
-    this.program = program;
-    this.angle = 0;
-
-    this.x = EXIT_CELL.col * CELL_SIZE + CELL_SIZE / 2;
-    this.y = WALL_HEIGHT + 0.45;
-    this.z = EXIT_CELL.row * CELL_SIZE + CELL_SIZE / 2;
-
-    this._build();
-  }
-
-  _build() {
-    const gl = this.gl;
-    const geo = buildCube(0.55);
-
-    this.bufs = {
-      pos:   createBuffer(gl, geo.positions),
-      norm:  createBuffer(gl, geo.normals),
-      tex:   createBuffer(gl, geo.texcoords),
-      idx:   createIndexBuffer(gl, geo.indices),
-      count: geo.indices.length
-    };
-
-    this.tex = loadTextureFromURL(gl, 'textures/exit_marker.png');
-  }
-
-  update(dt) {
-    this.angle += dt * 1.2;
-  }
-
-  draw() {
-    const gl = this.gl;
-    const prog = this.program;
-
-    let model = Mat4.translation(this.x, this.y, this.z);
-    model = Mat4.multiply(model, Mat4.rotationY(this.angle));
-    model = Mat4.multiply(model, Mat4.rotationX(0.5));
-    model = Mat4.multiply(model, Mat4.scale(1.0, 1.0, 1.0));
-
-    const normMat = Mat4.normalMatrix(model);
-
-    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, model);
-    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, normMat);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_useTexture'), 1);
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.tex);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_texture'), 0);
-
-    setAttrib(gl, prog, 'a_position', this.bufs.pos,  3);
-    setAttrib(gl, prog, 'a_normal',   this.bufs.norm, 3);
-    setAttrib(gl, prog, 'a_texCoord', this.bufs.tex,  2);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufs.idx);
-    gl.drawElements(gl.TRIANGLES, this.bufs.count, gl.UNSIGNED_SHORT, 0);
-  }
-}
-
-// ---- added decorative crate class --------------------------------
-
-class Crate {
-  constructor(gl, program, row, col) {
-    this.gl = gl;
-    this.program = program;
-    this.x = col * CELL_SIZE + CELL_SIZE / 2;
-    this.y = 0.32;
-    this.z = row * CELL_SIZE + CELL_SIZE / 2;
-    this._build();
-  }
-
-  _build() {
-    const gl = this.gl;
-    const geo = buildCube(0.7);
-
-    this.bufs = {
-      pos:   createBuffer(gl, geo.positions),
-      norm:  createBuffer(gl, geo.normals),
-      tex:   createBuffer(gl, geo.texcoords),
-      idx:   createIndexBuffer(gl, geo.indices),
-      count: geo.indices.length
-    };
-
-    this.tex = loadTextureFromURL(gl, 'textures/crate.png');
-  }
-
-  draw() {
-    const gl = this.gl;
-    const prog = this.program;
-
-    let model = Mat4.translation(this.x, this.y, this.z);
-    model = Mat4.multiply(model, Mat4.scale(1.0, 0.9, 1.0));
-
-    const normMat = Mat4.normalMatrix(model);
-
-    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, model);
-    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, normMat);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_useTexture'), 1);
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.tex);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_texture'), 0);
-
-    setAttrib(gl, prog, 'a_position', this.bufs.pos,  3);
-    setAttrib(gl, prog, 'a_normal',   this.bufs.norm, 3);
-    setAttrib(gl, prog, 'a_texCoord', this.bufs.tex,  2);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufs.idx);
-    gl.drawElements(gl.TRIANGLES, this.bufs.count, gl.UNSIGNED_SHORT, 0);
-  }
-}
-
-// ---- Scene object manager ----------------------------------
-
 class ObjectManager {
   constructor(gl, program) {
-    this.collectibles = COLLECTIBLE_CELLS.map(
-      ([row, col]) => new Collectible(gl, program, row, col)
-    );
+    this.collectibles = COLLECTIBLE_CELLS.map(([r,c]) => new Collectible(gl, program, r, c));
+    this.pillars = PILLAR_CELLS.map(([r,c]) => new Pillar(gl, program, r, c));
+    this.torches = TORCH_CELLS.map(([r,c]) => new Torch(gl, program, r, c));
     this.exit = new ExitDoor(gl, program);
-    this.exitMarker = new ExitMarker(gl, program);
-    this.crates = CRATE_CELLS.map(([row, col]) => new Crate(gl, program, row, col));
     this.collectedCount = 0;
 
-    // Update HUD totals
     document.getElementById('hud-total').textContent = this.collectibles.length;
     document.getElementById('hud-collected').textContent = '0';
   }
 
-  get totalCollectibles() { return this.collectibles.length; }
-  get allCollected() { return this.collectedCount === this.collectibles.length; }
+  get allCollected() {
+    return this.collectedCount === this.collectibles.length;
+  }
 
-  update(dt, playerX, playerZ) {
-    // Animate
+  update(dt, px, pz) {
     for (const c of this.collectibles) c.update(dt);
-    this.exitMarker.update(dt);
 
-    // Check pickups
     for (const c of this.collectibles) {
-      if (c.checkCollection(playerX, playerZ)) {
+      if (c.checkCollection(px, pz)) {
         this.collectedCount++;
         document.getElementById('hud-collected').textContent = this.collectedCount;
-        // Flash the screen
         const flash = document.getElementById('collect-flash');
         flash.classList.add('flash');
-        setTimeout(() => flash.classList.remove('flash'), 120);
-
-        if (this.allCollected) {
-          this.exit.unlock();
-        }
+        setTimeout(() => flash.classList.remove('flash'), 150);
+        if (this.allCollected) this.exit.unlock();
       }
     }
 
-    // Check exit
-    if (this.exit.checkExit(playerX, playerZ)) {
-      return 'exit';
-    }
+    if (this.exit.checkExit(px, pz)) return 'exit';
     return null;
   }
 
   draw() {
-    for (const crate of this.crates) crate.draw();
     for (const c of this.collectibles) c.draw();
+    for (const p of this.pillars) p.draw();
+    for (const t of this.torches) t.draw();
     this.exit.draw();
-    this.exitMarker.draw();
   }
 }
