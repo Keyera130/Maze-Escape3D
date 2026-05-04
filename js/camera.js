@@ -67,10 +67,10 @@ class Camera {
 
     let dx = 0, dz = 0;
 
-    if (this.keys.w || this.keys.arrowup)    { dx += fwd[0]; dz += fwd[2]; }
-    if (this.keys.s || this.keys.arrowdown)  { dx -= fwd[0]; dz -= fwd[2]; }
-    if (this.keys.a || this.keys.arrowleft)  { dx -= right[0]; dz -= right[2]; }
-    if (this.keys.d || this.keys.arrowright) { dx += right[0]; dz += right[2]; }
+    if (this.keys.w || this.keys.ArrowUp)    { dx += fwd[0]; dz += fwd[2]; }
+    if (this.keys.s || this.keys.ArrowDown)  { dx -= fwd[0]; dz -= fwd[2]; }
+    if (this.keys.a || this.keys.ArrowLeft)  { dx -= right[0]; dz -= right[2]; }
+    if (this.keys.d || this.keys.ArrowRight) { dx += right[0]; dz += right[2]; }
 
     // Normalize diagonal movement
     const len = Math.sqrt(dx*dx + dz*dz);
