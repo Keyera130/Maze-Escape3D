@@ -68,6 +68,31 @@ function buildDoorQuad(width, height) {
   return { positions, normals, texcoords, indices };
 }
 
+// Unit cube centered at origin. Used for crates and the exit marker in the maze (added for unique object/texturing/lighting requirements)
+function buildCube(size = 1.0) {
+  const h = size / 2;
+  const positions = [], normals = [], texcoords = [], indices = [];
+  let base = 0;
+
+  function addFace(ps, normal) {
+    positions.push(...ps[0], ...ps[1], ...ps[2], ...ps[3]);
+    normals.push(...normal, ...normal, ...normal, ...normal);
+    texcoords.push(0,0, 1,0, 1,1, 0,1);
+    indices.push(base, base+1, base+2, base, base+2, base+3);
+    base += 4;
+  }
+
+  // +X, -X, +Y, -Y, +Z, -Z
+  addFace([[ h,-h,-h],[ h,-h, h],[ h, h, h],[ h, h,-h]], [ 1,0,0]);
+  addFace([[-h,-h, h],[-h,-h,-h],[-h, h,-h],[-h, h, h]], [-1,0,0]);
+  addFace([[-h, h,-h],[ h, h,-h],[ h, h, h],[-h, h, h]], [ 0,1,0]);
+  addFace([[-h,-h, h],[ h,-h, h],[ h,-h,-h],[-h,-h,-h]], [ 0,-1,0]);
+  addFace([[ h,-h, h],[-h,-h, h],[-h, h, h],[ h, h, h]], [ 0,0,1]);
+  addFace([[-h,-h,-h],[ h,-h,-h],[ h, h,-h],[-h, h,-h]], [ 0,0,-1]);
+
+  return { positions, normals, texcoords, indices };
+}
+
 // ---- Collectible class -------------------------------------
 
 class Collectible {
@@ -102,6 +127,9 @@ class Collectible {
     // Bright cyan gem color
     this.color = [0.1, 0.9, 1.0];
     this.tex = loadTexture(gl, [20, 220, 255, 255]);
+    
+    //ADDED texture for the gem
+    this.tex = loadTextureFromURL(gl, 'textures/gem.png');
   }
 
   update(dt) {
