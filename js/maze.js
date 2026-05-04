@@ -132,7 +132,7 @@ class Maze {
         const z1 = z0 + CELL_SIZE;
 
         // Floor for every cell
-        floorGeos.push(buildFloorQuad(x0, z0, x1, z1, 0.0, 1));
+        floorGeos.push(buildFloorQuad(x0, z0, x1, z1, 0.0, 1, 2.0));
 
         if (MAZE_GRID[row][col] === 1) {
           wallGeos.push(buildWallBox(x0, 0, z0, x1, WALL_HEIGHT, z1));
@@ -166,7 +166,7 @@ class Maze {
     // Placeholder textures — swap for loadTextureFromURL() when you have image files
     //this.wallTex  = loadTexture(gl, [80,  60,  50,  255]); // brownish stone
     //this.floorTex = loadTexture(gl, [55,  55,  60,  255]); // dark concrete
-    
+
     this.wallTex  = loadTextureFromURL(gl, 'textures/wall.png');
     this.floorTex = loadTextureFromURL(gl, 'textures/floor.png');
   }

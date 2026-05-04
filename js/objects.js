@@ -65,13 +65,39 @@ function buildOctahedron(size) {
 
 // ---- Exit Door geometry (flat quad facing -Z) --------------
 
-function buildDoorQuad(width, height) {
+  // function buildDoorQuad(width, height) {
+  //   const hw = width / 2;
+  //   const positions = [-hw,0,0, hw,0,0, hw,height,0, -hw,height,0];
+  //   const norm = [0,0,1];
+  //   const normals = [...norm,...norm,...norm,...norm];
+  //   const texcoords = [0,0, 1,0, 1,1, 0,1];
+  //   const indices = [0,1,2, 0,2,3];
+  //   return { positions, normals, texcoords, indices };
+  // }
+  function buildDoorQuad(width, height) {
   const hw = width / 2;
-  const positions = [-hw,0,0, hw,0,0, hw,height,0, -hw,height,0];
-  const norm = [0,0,1];
-  const normals = [...norm,...norm,...norm,...norm];
-  const texcoords = [0,0, 1,0, 1,1, 0,1];
-  const indices = [0,1,2, 0,2,3];
+
+  // Door is now a vertical YZ-plane quad.
+  // This makes it visible when approaching the exit from the left side of the maze.
+  const positions = [
+    0, 0, -hw,
+    0, 0,  hw,
+    0, height, hw,
+    0, height, -hw
+  ];
+
+  const norm = [-1, 0, 0];
+  const normals = [...norm, ...norm, ...norm, ...norm];
+
+  const texcoords = [
+    0, 0,
+    1, 0,
+    1, 1,
+    0, 1
+  ];
+
+  const indices = [0, 1, 2, 0, 2, 3];
+
   return { positions, normals, texcoords, indices };
 }
 
@@ -195,7 +221,7 @@ class ExitDoor {
     this.unlocked = false;
 
     // Place door at exit cell, facing inward (-Z direction)
-    this.x = EXIT_CELL.col * CELL_SIZE + CELL_SIZE / 2;
+    this.x = EXIT_CELL.col * CELL_SIZE + CELL_SIZE / 2 - 0.45;
     this.y = 0;
     this.z = EXIT_CELL.row * CELL_SIZE + CELL_SIZE / 2;
 
