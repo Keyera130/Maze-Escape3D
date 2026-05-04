@@ -249,6 +249,119 @@ class ExitDoor {
   }
 }
 
+// ---- added Exit marker class -------------------------------------
+
+class ExitMarker {
+  constructor(gl, program) {
+    this.gl = gl;
+    this.program = program;
+    this.angle = 0;
+
+    this.x = EXIT_CELL.col * CELL_SIZE + CELL_SIZE / 2;
+    this.y = WALL_HEIGHT + 0.45;
+    this.z = EXIT_CELL.row * CELL_SIZE + CELL_SIZE / 2;
+
+    this._build();
+  }
+
+  _build() {
+    const gl = this.gl;
+    const geo = buildCube(0.55);
+
+    this.bufs = {
+      pos:   createBuffer(gl, geo.positions),
+      norm:  createBuffer(gl, geo.normals),
+      tex:   createBuffer(gl, geo.texcoords),
+      idx:   createIndexBuffer(gl, geo.indices),
+      count: geo.indices.length
+    };
+
+    this.tex = loadTextureFromURL(gl, 'textures/exit_marker.png');
+  }
+
+  update(dt) {
+    this.angle += dt * 1.2;
+  }
+
+  draw() {
+    const gl = this.gl;
+    const prog = this.program;
+
+    let model = Mat4.translation(this.x, this.y, this.z);
+    model = Mat4.multiply(model, Mat4.rotationY(this.angle));
+    model = Mat4.multiply(model, Mat4.rotationX(0.5));
+    model = Mat4.multiply(model, Mat4.scale(1.0, 1.0, 1.0));
+
+    const normMat = Mat4.normalMatrix(model);
+
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, model);
+    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, normMat);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_useTexture'), 1);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_texture'), 0);
+
+    setAttrib(gl, prog, 'a_position', this.bufs.pos,  3);
+    setAttrib(gl, prog, 'a_normal',   this.bufs.norm, 3);
+    setAttrib(gl, prog, 'a_texCoord', this.bufs.tex,  2);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufs.idx);
+    gl.drawElements(gl.TRIANGLES, this.bufs.count, gl.UNSIGNED_SHORT, 0);
+  }
+}
+
+// ---- added decorative crate class --------------------------------
+
+class Crate {
+  constructor(gl, program, row, col) {
+    this.gl = gl;
+    this.program = program;
+    this.x = col * CELL_SIZE + CELL_SIZE / 2;
+    this.y = 0.32;
+    this.z = row * CELL_SIZE + CELL_SIZE / 2;
+    this._build();
+  }
+
+  _build() {
+    const gl = this.gl;
+    const geo = buildCube(0.7);
+
+    this.bufs = {
+      pos:   createBuffer(gl, geo.positions),
+      norm:  createBuffer(gl, geo.normals),
+      tex:   createBuffer(gl, geo.texcoords),
+      idx:   createIndexBuffer(gl, geo.indices),
+      count: geo.indices.length
+    };
+
+    this.tex = loadTextureFromURL(gl, 'textures/crate.png');
+  }
+
+  draw() {
+    const gl = this.gl;
+    const prog = this.program;
+
+    let model = Mat4.translation(this.x, this.y, this.z);
+    model = Mat4.multiply(model, Mat4.scale(1.0, 0.9, 1.0));
+
+    const normMat = Mat4.normalMatrix(model);
+
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, model);
+    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, normMat);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_useTexture'), 1);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_texture'), 0);
+
+    setAttrib(gl, prog, 'a_position', this.bufs.pos,  3);
+    setAttrib(gl, prog, 'a_normal',   this.bufs.norm, 3);
+    setAttrib(gl, prog, 'a_texCoord', this.bufs.tex,  2);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufs.idx);
+    gl.drawElements(gl.TRIANGLES, this.bufs.count, gl.UNSIGNED_SHORT, 0);
+  }
+}
+
 // ---- Scene object manager ----------------------------------
 
 class ObjectManager {
