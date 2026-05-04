@@ -179,3 +179,16 @@ document.getElementById('glCanvas').addEventListener('click', () => {
     camera?.requestPointerLock();
   }
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  const startBtn = document.getElementById('start-btn');
+  const restartBtn = document.getElementById('restart-btn');
+
+  if (startBtn) {
+    startBtn.addEventListener('click', startGame);
+  }
+
+  if (restartBtn) {
+    restartBtn.addEventListener('click', restartGame);
+  }
+});
