@@ -297,10 +297,13 @@ class Torch {
 
 class ExitDoor {
   constructor(gl, program) {
-    this.gl=gl; this.program=program; this.unlocked=false;
-    this.x=EXIT_CELL.col*CELL_SIZE+CELL_SIZE/2;
-    this.y=0;
-    this.z=EXIT_CELL.row*CELL_SIZE+CELL_SIZE/2;
+    this.gl = gl;
+    this.program = program;
+    this.unlocked = false;
+
+    this.x = EXIT_CELL.col * CELL_SIZE + CELL_SIZE / 2;
+    this.y = 0;
+    this.z = EXIT_CELL.row * CELL_SIZE + CELL_SIZE / 2;
     this._build();
   }
 

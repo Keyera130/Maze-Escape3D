@@ -189,8 +189,14 @@ function loadTextureFromURL(gl, url, repeat = true) {
 
   // Placeholder so the object is still visible while the image loads.
   gl.texImage2D(
-    gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0,
-    gl.RGBA, gl.UNSIGNED_BYTE,
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    1,
+    1,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
     new Uint8Array([130, 130, 130, 255])
   );
 
@@ -200,6 +206,7 @@ function loadTextureFromURL(gl, url, repeat = true) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
   const img = new Image();
+
   img.onload = () => {
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
