@@ -50,21 +50,23 @@ function buildWallBox(x0, y0, z0, x1, y1, z1) {
   return { positions, normals, texcoords, indices };
 }
 
+// Floor at y=0, normal pointing UP (+Y) — visible from above
 function buildFloorTile(x0, z0, x1, z1) {
   return {
-    positions: [x0,0,z0, x1,0,z0, x1,0,z1, x0,0,z1],
-    normals:   [0,1,0, 0,1,0, 0,1,0, 0,1,0],
-    texcoords: [0,0, 1,0, 1,1, 0,1],
-    indices:   [0,1,2, 0,2,3]
+    positions: [x0,0,z0,  x1,0,z0,  x1,0,z1,  x0,0,z1],
+    normals:   [0,1,0,    0,1,0,    0,1,0,    0,1,0],
+    texcoords: [0,0,      1,0,      1,1,      0,1],
+    indices:   [0,2,1,    0,3,2]   // CCW from above → normal faces +Y
   };
 }
 
+// Ceiling at y=WALL_HEIGHT, normal pointing DOWN (-Y) — visible from below
 function buildCeilingTile(x0, z0, x1, z1) {
   return {
-    positions: [x0,WALL_HEIGHT,z1, x1,WALL_HEIGHT,z1, x1,WALL_HEIGHT,z0, x0,WALL_HEIGHT,z0],
-    normals:   [0,-1,0, 0,-1,0, 0,-1,0, 0,-1,0],
-    texcoords: [0,0, 1,0, 1,1, 0,1],
-    indices:   [0,1,2, 0,2,3]
+    positions: [x0,WALL_HEIGHT,z0,  x1,WALL_HEIGHT,z0,  x1,WALL_HEIGHT,z1,  x0,WALL_HEIGHT,z1],
+    normals:   [0,-1,0,             0,-1,0,             0,-1,0,             0,-1,0],
+    texcoords: [0,0,               1,0,               1,1,               0,1],
+    indices:   [0,1,2,             0,2,3]  // CCW from below → normal faces -Y
   };
 }
 
@@ -100,32 +102,31 @@ class Maze {
         floorGeos.push(buildFloorTile(x0, z0, x1, z1));
         ceilingGeos.push(buildCeilingTile(x0, z0, x1, z1));
 
-        if (MAZE_GRID[row][col] === 1) {
+        if (MAZE_GRID[row][col] === 1)
           wallGeos.push(buildWallBox(x0, 0, z0, x1, WALL_HEIGHT, z1));
-        }
       }
     }
 
-    this.wallGeo = mergeGeometries(wallGeos);
-    this.floorGeo = mergeGeometries(floorGeos);
+    this.wallGeo    = mergeGeometries(wallGeos);
+    this.floorGeo   = mergeGeometries(floorGeos);
     this.ceilingGeo = mergeGeometries(ceilingGeos);
   }
 
   _uploadBuffers() {
     const gl = this.gl;
     const upload = geo => ({
-      pos: createBuffer(gl, geo.positions),
-      norm: createBuffer(gl, geo.normals),
-      tex: createBuffer(gl, geo.texcoords),
-      idx: createIndexBuffer(gl, geo.indices),
+      pos:   createBuffer(gl, geo.positions),
+      norm:  createBuffer(gl, geo.normals),
+      tex:   createBuffer(gl, geo.texcoords),
+      idx:   createIndexBuffer(gl, geo.indices),
       count: geo.indices.length
     });
 
-    this.wallBufs = upload(this.wallGeo);
-    this.floorBufs = upload(this.floorGeo);
+    this.wallBufs    = upload(this.wallGeo);
+    this.floorBufs   = upload(this.floorGeo);
     this.ceilingBufs = upload(this.ceilingGeo);
 
-    // Put these image files inside your textures/ folder.
+    // Wall texture on walls
     this.wallMaps = {
       diffuse:  loadTextureFromURL(gl, 'textures/wall.png'),
       normal:   loadTextureFromURL(gl, 'textures/wall_normal.png'),
@@ -133,24 +134,29 @@ class Maze {
       ambient:  loadTextureFromURL(gl, 'textures/wall_ambient.png')
     };
 
+    // Floor texture on the FLOOR (bottom, y=0)
     this.floorMaps = {
-      diffuse: loadTextureFromURL(gl, 'textures/floor.png')
+      diffuse:  loadTextureFromURL(gl, 'textures/floor.png'),
+      normal:   loadTextureFromURL(gl, 'textures/floor_normal.png'),
+      specular: loadTextureFromURL(gl, 'textures/floor_specular.png'),
+      ambient:  loadTextureFromURL(gl, 'textures/floor_ambient.png')
     };
 
+    // Wall texture on the CEILING (top, y=WALL_HEIGHT)
     this.ceilingMaps = {
-      diffuse: loadTextureFromURL(gl, 'textures/wall.png'),
-      normal:  loadTextureFromURL(gl, 'textures/wall_normal.png')
+      diffuse:  loadTextureFromURL(gl, 'textures/wall.png'),
+      normal:   loadTextureFromURL(gl, 'textures/wall_normal.png'),
+      specular: loadTextureFromURL(gl, 'textures/wall_specular.png'),
+      ambient:  loadTextureFromURL(gl, 'textures/wall_ambient.png')
     };
   }
 
   _drawMesh(bufs, maps) {
     const gl = this.gl, prog = this.program;
-
     bindTextureMaps(gl, prog, maps);
-    setAttrib(gl, prog, 'a_position', bufs.pos, 3);
-    setAttrib(gl, prog, 'a_normal', bufs.norm, 3);
-    setAttrib(gl, prog, 'a_texCoord', bufs.tex, 2);
-
+    setAttrib(gl, prog, 'a_position', bufs.pos,  3);
+    setAttrib(gl, prog, 'a_normal',   bufs.norm, 3);
+    setAttrib(gl, prog, 'a_texCoord', bufs.tex,  2);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bufs.idx);
     gl.drawElements(gl.TRIANGLES, bufs.count, gl.UNSIGNED_SHORT, 0);
   }
@@ -158,13 +164,12 @@ class Maze {
   draw() {
     const gl = this.gl, prog = this.program;
     const modelMat = Mat4.identity();
-
     gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'u_modelMatrix'), false, modelMat);
     gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'u_normalMatrix'), false, Mat4.normalMatrix(modelMat));
 
     gl.disable(gl.CULL_FACE);
-    this._drawMesh(this.wallBufs, this.wallMaps);
-    this._drawMesh(this.floorBufs, this.floorMaps);
+    this._drawMesh(this.wallBufs,    this.wallMaps);
+    this._drawMesh(this.floorBufs,   this.floorMaps);
     this._drawMesh(this.ceilingBufs, this.ceilingMaps);
     gl.enable(gl.CULL_FACE);
   }

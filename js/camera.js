@@ -42,18 +42,20 @@ class Camera {
 
   _onMouseMove(e) {
     if (!this.pointerLocked) return;
-    this.yaw += e.movementX * LOOK_SENS;
+    this.yaw -= e.movementX * LOOK_SENS;
     this.pitch -= e.movementY * LOOK_SENS;
     this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch));
   }
 
   getMovementDelta(dt) {
-    // This matches getViewMatrix(), where yaw=0 looks toward +Z.
+    // The view matrix lookAt negates forward, so the camera looks toward
+    // (-sin(yaw), 0, -cos(yaw)). Movement must use the same direction.
     const fwdX = Math.sin(this.yaw);
     const fwdZ = Math.cos(this.yaw);
 
-    const rtX = Math.cos(this.yaw);
-    const rtZ = -Math.sin(this.yaw);
+    // Right = fwd rotated 90deg CW around Y
+    const rtX = -fwdZ;
+    const rtZ =  fwdX;
 
     let dx = 0, dz = 0;
 
@@ -100,4 +102,3 @@ class Camera {
 
   get position() { return [this.x, this.y, this.z]; }
 }
-

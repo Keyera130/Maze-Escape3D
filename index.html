@@ -203,32 +203,32 @@
   varying vec3 v_fragPos;
   varying vec2 v_texCoord;
 
-  uniform vec3 u_lightPos;
-  uniform vec3 u_lightColor;
-  uniform vec3 u_viewPos;
+  // Main overhead light
+  uniform vec3  u_lightPos;
+  uniform vec3  u_lightColor;
+  uniform vec3  u_viewPos;
   uniform float u_ambientStrength;
 
+  // Torch point lights (up to 4)
+  uniform vec3  u_torchPos[4];
+  uniform vec3  u_torchColor[4];
+  uniform int   u_numTorches;
+
+  // Texture maps
   uniform sampler2D u_diffuseMap;
   uniform sampler2D u_normalMap;
   uniform sampler2D u_specularMap;
   uniform sampler2D u_ambientMap;
-
   uniform bool u_useNormalMap;
   uniform bool u_useSpecularMap;
   uniform bool u_useAmbientMap;
 
   mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
-    vec3 dp1 = dFdx(p);
-    vec3 dp2 = dFdy(p);
-    vec2 duv1 = dFdx(uv);
-    vec2 duv2 = dFdy(uv);
-
-    vec3 dp2perp = cross(dp2, N);
-    vec3 dp1perp = cross(N, dp1);
-
+    vec3 dp1 = dFdx(p), dp2 = dFdy(p);
+    vec2 duv1 = dFdx(uv), duv2 = dFdy(uv);
+    vec3 dp2perp = cross(dp2, N), dp1perp = cross(N, dp1);
     vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
     vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
-
     float invMax = inversesqrt(max(dot(T,T), dot(B,B)));
     return mat3(T * invMax, B * invMax, N);
   }
@@ -236,41 +236,46 @@
   vec3 getNormal() {
     vec3 N = normalize(v_normal);
     if (!u_useNormalMap) return N;
+    vec3 mapN = texture2D(u_normalMap, v_texCoord).rgb * 2.0 - 1.0;
+    return normalize(cotangentFrame(N, v_fragPos, v_texCoord) * mapN);
+  }
 
-    vec3 mapN = texture2D(u_normalMap, v_texCoord).rgb;
-    mapN = mapN * 2.0 - 1.0;
-
-    mat3 TBN = cotangentFrame(N, v_fragPos, v_texCoord);
-    return normalize(TBN * mapN);
+  // Blinn-Phong for a single point light with distance attenuation
+  vec3 calcPointLight(vec3 N, vec3 lPos, vec3 lCol, vec3 base,
+                      float specStr, vec3 V) {
+    vec3  L    = lPos - v_fragPos;
+    float dist = length(L);
+    L = normalize(L);
+    float atten = 1.0 / (1.0 + 0.08 * dist + 0.04 * dist * dist);
+    float diff  = max(dot(N, L), 0.0);
+    vec3  H     = normalize(L + V);
+    float spec  = pow(max(dot(N, H), 0.0), 48.0);
+    return (diff * lCol * base + specStr * spec * lCol) * atten;
   }
 
   void main() {
-    vec3 baseColor = texture2D(u_diffuseMap, v_texCoord).rgb;
+    vec4 texSample = texture2D(u_diffuseMap, v_texCoord);
+    vec3 base      = texSample.rgb;
+    float alpha    = texSample.a;   // use texture alpha for transparency (torch flame)
 
-    vec3 ambientColor = baseColor;
-    if (u_useAmbientMap) {
-      ambientColor *= texture2D(u_ambientMap, v_texCoord).rgb;
+    vec3 ambOcc  = u_useAmbientMap  ? texture2D(u_ambientMap,  v_texCoord).rgb : vec3(1.0);
+    float specStr = u_useSpecularMap ? texture2D(u_specularMap, v_texCoord).r  : 0.30;
+    vec3 N = getNormal();
+    vec3 V = normalize(u_viewPos - v_fragPos);
+
+    // Ambient
+    vec3 color = u_ambientStrength * u_lightColor * base * ambOcc;
+
+    // Main overhead light
+    color += calcPointLight(N, u_lightPos, u_lightColor, base, specStr, V);
+
+    // Torch point lights — warm orange glow on surrounding walls
+    for (int i = 0; i < 4; i++) {
+      if (i >= u_numTorches) break;
+      color += calcPointLight(N, u_torchPos[i], u_torchColor[i], base, specStr * 1.5, V);
     }
 
-    vec3 norm = getNormal();
-    vec3 lightDir = normalize(u_lightPos - v_fragPos);
-    vec3 viewDir = normalize(u_viewPos - v_fragPos);
-    vec3 reflectDir = reflect(-lightDir, norm);
-
-    float diff = max(dot(norm, lightDir), 0.0);
-
-    float specStrength = 0.35;
-    if (u_useSpecularMap) {
-      specStrength = texture2D(u_specularMap, v_texCoord).r;
-    }
-
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
-
-    vec3 ambient = u_ambientStrength * u_lightColor * ambientColor;
-    vec3 diffuse = diff * u_lightColor * baseColor;
-    vec3 specular = specStrength * spec * u_lightColor;
-
-    gl_FragColor = vec4(ambient + diffuse + specular, 1.0);
+    gl_FragColor = vec4(color, alpha);
   }
 </script>
 

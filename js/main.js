@@ -8,16 +8,14 @@ let keysAlreadyBound = false;
 function initWebGL() {
   const canvas = document.getElementById('glCanvas');
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = canvas.clientWidth * dpr;
+  canvas.width  = canvas.clientWidth  * dpr;
   canvas.height = canvas.clientHeight * dpr;
 
   gl = canvas.getContext('webgl');
   if (!gl) { alert('WebGL not supported. Use Chrome or Firefox.'); return false; }
 
-  const derivatives = gl.getExtension('OES_standard_derivatives');
-  if (!derivatives) {
-    alert('Your browser/GPU does not support normal mapping derivatives. Try Chrome or Edge.');
-    return false;
+  if (!gl.getExtension('OES_standard_derivatives')) {
+    alert('Normal mapping not supported. Try Chrome or Edge.'); return false;
   }
 
   const vertSrc = document.getElementById('vertex-shader').textContent;
@@ -29,22 +27,21 @@ function initWebGL() {
   gl.enable(gl.DEPTH_TEST);
   gl.enable(gl.CULL_FACE);
   gl.cullFace(gl.BACK);
-  gl.clearColor(0.02, 0.02, 0.04, 1.0);
+  gl.clearColor(0.01, 0.01, 0.02, 1.0);
   return true;
 }
 
 function initScene() {
-  maze = new Maze(gl, program);
+  maze    = new Maze(gl, program);
   objects = new ObjectManager(gl, program);
-  camera = new Camera(PLAYER_START.x, PLAYER_START.y, PLAYER_START.z);
-
-  document.getElementById('hud-light-color').textContent = 'Warm';
-  document.getElementById('hud-flashlight').textContent = 'ON';
+  camera  = new Camera(PLAYER_START.x, PLAYER_START.y, PLAYER_START.z);
+  document.getElementById('hud-light-color').textContent = 'Torch';
+  document.getElementById('hud-flashlight').textContent  = 'ON';
 }
 
 function setProjection() {
   const aspect = gl.canvas.width / gl.canvas.height;
-  const proj = Mat4.perspective(70 * Math.PI / 180, aspect, 0.1, 120.0);
+  const proj   = Mat4.perspective(70 * Math.PI / 180, aspect, 0.1, 120.0);
   gl.uniformMatrix4fv(gl.getUniformLocation(program, 'u_projMatrix'), false, proj);
 }
 
@@ -62,7 +59,6 @@ function update(dt) {
   const { dx, dz } = camera.getMovementDelta(dt);
   const safe = resolveCollision(camera.x, camera.z, dx, dz);
   camera.move(safe.dx, safe.dz);
-
   const result = objects.update(dt, camera.x, camera.z);
   if (result === 'exit') triggerWin();
 }
@@ -70,9 +66,9 @@ function update(dt) {
 function render() {
   const canvas = gl.canvas;
   const dpr = window.devicePixelRatio || 1;
-  if (canvas.width !== canvas.clientWidth * dpr ||
+  if (canvas.width  !== canvas.clientWidth  * dpr ||
       canvas.height !== canvas.clientHeight * dpr) {
-    canvas.width = canvas.clientWidth * dpr;
+    canvas.width  = canvas.clientWidth  * dpr;
     canvas.height = canvas.clientHeight * dpr;
   }
 
@@ -81,12 +77,17 @@ function render() {
   setProjection();
 
   gl.uniformMatrix4fv(gl.getUniformLocation(program, 'u_viewMatrix'), false, camera.getViewMatrix());
-  gl.uniform1f(gl.getUniformLocation(program, 'u_ambientStrength'), flashlightOn ? 0.45 : 0.07);
-  applyLighting(gl, program, camera.position);
+  gl.uniform1f(gl.getUniformLocation(program, 'u_ambientStrength'), flashlightOn ? 0.35 : 0.04);
 
-  applyLighting(gl, program, camera.position);
+  // Gather torch positions for dynamic point lighting
+  const torchPositions = objects.torches.map(t => t.flamePos);
+  applyLighting(gl, program, camera.position, torchPositions);
+
+  // Opaque pass — depth write ON, blending OFF
+  gl.depthMask(true);
+  gl.disable(gl.BLEND);
   maze.draw();
-  objects.draw();
+  objects.draw(camera.x, camera.z);
 }
 
 function updateHUDTime() {
@@ -97,14 +98,11 @@ function updateHUDTime() {
 }
 
 function bindInteractionKeys() {
+  if (keysAlreadyBound) return;
+  keysAlreadyBound = true;
   document.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
-
-    if (key === 'l') {
-      e.preventDefault();
-      cycleLightColor();
-    }
-
+    if (key === 'l') { e.preventDefault(); cycleLightColor(); }
     if (key === 'f') {
       e.preventDefault();
       flashlightOn = !flashlightOn;
@@ -120,21 +118,21 @@ function startGame() {
   document.getElementById('start-screen').style.display = 'none';
   camera.requestPointerLock();
   gameRunning = true;
-  startTime = Date.now();
-  lastTime = performance.now();
+  startTime   = Date.now();
+  lastTime    = performance.now();
   requestAnimationFrame(gameLoop);
 }
 
 function restartGame() {
-  document.getElementById('win-screen').style.display = 'none';
+  document.getElementById('win-screen').style.display   = 'none';
   document.getElementById('hud-exit-status').textContent = 'LOCKED';
   document.getElementById('hud-exit-status').style.color = '';
   flashlightOn = true;
   initScene();
   camera.requestPointerLock();
   gameRunning = true;
-  startTime = Date.now();
-  lastTime = performance.now();
+  startTime   = Date.now();
+  lastTime    = performance.now();
   requestAnimationFrame(gameLoop);
 }
 
@@ -151,7 +149,7 @@ function triggerWin() {
 window.addEventListener('resize', () => {
   const canvas = document.getElementById('glCanvas');
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = canvas.clientWidth * dpr;
+  canvas.width  = canvas.clientWidth  * dpr;
   canvas.height = canvas.clientHeight * dpr;
 });
 
